@@ -67,3 +67,34 @@ const passport = require("passport");
    - Middleware functions are functionalities that lie between the front-end and back-end and is responsible for carrying out various server pre-processing (informally speaking) tasks before getting to the actual processing that will take place on the back-end (or server-side). In this particular case, user authentication being a pre-processing step i.e. unless a user's identity is not verified, they will not be able to access any of the resources (or the resources you want to protect as a developer) hosted by the server.
 
 4. In this tutorial, we will use Google as our identity provider that will be invoked through Passport.
+
+### Step 4: Setup Google OAuth2
+
+1. Login to Google using your desired gmail account. It is suggested you use your personal gmail.
+2. Browse to the [Google cloud console link](https://console.cloud.google.com/getting-started)
+   - First time users, accept the terms and conditions
+3. On the menu of the left of the page, select **APIs and Services**
+4. On the dashboard, click on **create project**
+   - Give your project a name
+   - If you are using an organizational gmail account it will default select your organization and location fields. If using personal gmail, it will show location as _No organization_. Either is fine. Once done, click **Create**.
+5. Then from the menu on the left, select **OAuth consent screen**.
+   - Choose your _User Type_:
+     - _Internal_: Only users within your organization can use this authentication.
+     - _External_: Anyone with a gmail can use your authentication for your webapp.
+   - Click on create after making your selection.
+6. Go through the prompts and fill in the information that you want to show to your users when they get to the google authentication page. If you don't want to fill this now, simply skip all the optional info. Just fill in the name and contact email of your web-app and web-app admin. You can always come back and edit all of this information. Once you are done, it will take you back to the dashboard.
+7. Next, from the menu on the left, click on **credentials**.
+8. In this page, look at the center top. There will be an option called **CREATE CREDENTIALS**. Click that and choose **OAuth client ID** from the dropdown menu.
+9. The new page that will open will ask you to select an application type. Here we will select _Web Application_.
+   - Make a note of this action. You have the option to choose Andriod, iOS and others.
+10. Give a name for your OAuth 2.0 client. This will not be shown to end users. The tutorial stuck to the default name, but you can give any name.
+11. The next important field to fill out in this page is **Authorized redirect URIs**
+    - This field essentially means, 'What should Google do once the user is successfully authenticated?'. We want Google to send the user back to our web application page or whatever resource you decide the user should be re-directed to.
+12. For the tutorial we will create a route for the URL specified below. Remember, you can give whatever you want, as long as it is a valid route in your server
+
+```javascript
+http://localhost:3000/google/callback
+```
+
+13. After this, click the **CREATE** button at the bottom of the page.
+14. This will open a new window with your **Client ID** and **Client-Secret**. We need to use this to replace the generic parameter values in the code preamble we had imported into our auth.js file.
