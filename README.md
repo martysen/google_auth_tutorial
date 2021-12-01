@@ -26,15 +26,19 @@
 2. Copy paste the preamble code shown below into _auth.js_
 
 ```javascript
+const GoogleStrategy = require("passport-google-oauth2").Strategy;
 passport.use(
   new GoogleStrategy(
     {
+      // Connection Confguration to Google authentication
       clientID: GOOGLE_CLIENT_ID,
       clientSecret: GOOGLE_CLIENT_SECRET,
       callbackURL: "http://yourdomain:3000/auth/google/callback",
       passReqToCallback: true,
     },
+    // What to do once the user is successfully authenticated
     function (request, accessToken, refreshToken, profile, done) {
+      //The function below is useful when connected to a DB such that you can create a new user or find existing users
       User.findOrCreate({ googleId: profile.id }, function (err, user) {
         return done(err, user);
       });
