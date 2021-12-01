@@ -98,3 +98,43 @@ http://localhost:3000/google/callback
 
 13. After this, click the **CREATE** button at the bottom of the page.
 14. This will open a new window with your **Client ID** and **Client-Secret**. We need to use this to replace the generic parameter values in the code preamble we had imported into our auth.js file.
+15. You will now see your OAuth 2.0 Client IDs on the credentials dashboard page. Click on it to revisit the details anytime you want.
+
+### Step 5: Replace the generic stuff from the Passport's Google Strategy.
+
+1. Go back to _auth.js_
+2. Notice the parameters in the following piece of code:
+
+```javascript
+new GoogleStrategy(
+    {
+      clientID: GOOGLE_CLIENT_ID, // Replace Here
+      clientSecret: GOOGLE_CLIENT_SECRET, // Replace Here
+      callbackURL: "http://yourdomain:3000/auth/google/callback", // Replace Here
+      passReqToCallback: true,
+    },
+```
+
+3. However, we do not simply want to copy and replace directly in the code
+4. These values are secrets and environment/config variables. As a good practice, we want to place them in a file called _config.env_ that will be enabled in the rest of our files using the _dotenv_ module that we had installed earlier.
+5. Create a file _config.env_ in the root directory, and initialize your variables (You can also put the callbackURL and PORT number etc.):
+
+```javascript
+GOOGLE_CLIENT_ID = "Your generated value";
+GOOGLE_CLIENT_SECRET = "Your generated value";
+```
+
+6. Get back to the _auth.js_ file and import the following module:
+
+```javascript
+const dotenv = require('dotenv');
+//load file path for config.env
+dotenv.config({ path = './config.env'}); // make sure to specify the correct path
+```
+
+7. Then replace the authentication strategy codes as follows:
+
+```javascript
+clientID: process.env.GOOGLE_CLIENT_ID,
+clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+```
