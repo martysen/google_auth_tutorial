@@ -9,6 +9,8 @@
 5. nodemon
 6. dotenv - to store environment variables or configuration parameters
 
+## Step-by-Step Instructions
+
 ### Step 1: Setup Basic Web-application Framework in Exprss
 
 1. Create package.json with npm init
