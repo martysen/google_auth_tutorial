@@ -138,3 +138,208 @@ dotenv.config({ path = './config.env'}); // make sure to specify the correct pat
 clientID: process.env.GOOGLE_CLIENT_ID,
 clientSecret: process.env.GOOGLE_CLIENT_SECRET,
 ```
+
+### Step 6: What to do when the client successfulyy logs in.
+
+1. The following piece of code from the preamble is reponsible for deciding that logic:
+
+```javascript
+function (request, accessToken, refreshToken, profile, done) {
+      User.findOrCreate({ googleId: profile.id }, function (err, user) {
+        return done(null, user); // since we are not creating new user in the db we are passing null
+      });
+```
+
+2. In a more roubust setup, the **findOrCreate()** will allow to connect to a database and insert the user name if it is a new user or find the user from the database if it is a returning user.
+
+3. However, in this tutorial, to stay on point, we will simply take the user name and prompt a hello message to the user using the user name. i.e. we will use the following functionality:
+
+```javascript
+function (request, accessToken, refreshToken, profile, done) {
+      return done(null, profile);
+    }
+```
+
+4. Note: _accessToken_ and _refreshToken_ allows you to use other google services if present in your app for verified user.
+
+### Step 7: Define serialization and deserialization of users.
+
+1. Using the following code (function bodies are simplied for tutorial purposes)
+
+```javascript
+// Define serializer
+passport.serializeUser((user, done) => {
+  done(null, user);
+});
+
+// Define deserializer
+passport.deserializeUser((user, done) => {
+  done(null, user);
+});
+```
+
+2. What does serializer do?
+
+   - Sets user attributes (id or email) as cookie in the user's browser for session management purposes.
+
+3. What does deserializer do?
+
+   - Retrives the user id from the cookie and then used in a callback function to get access to other relevant user info from the stored cookie.
+   - See a helpful flowchart on this [link's](https://stackoverflow.com/questions/27637609/understanding-passport-serialize-deserialize) top answer to understand the process better.
+
+4. This completes all the operations within the auth.js file and now we need to utilize this in the app.js file.
+
+### Step 8: Utilizing _auth.js_ in _app.js_
+
+1. Import the auth.js file inside of app.js. Note here, we just need the file to be loaded into app.js and as such we are not storing it within an object.
+
+```javascript
+require("./auth");
+```
+
+2. Our home route is defined as follows:
+
+```javascript
+app.get("/", (req, res) => {
+  // respond with a link that will take users to authenticate with Google
+  // You can replace it with a View which will have the href in a html file
+  // Or a View with a proper login page.
+  res.send('<a href="/auth/google">Login with Google </a>');
+});
+```
+
+3. So now we need to define a route for the href specified above. And through this route we will call make call to Google sign-in via Passport.
+
+```javascript
+app.get(
+  "/auth/google",
+  passport.authenticate("google", { scope: ["email", "profile"] })
+);
+```
+
+4. Therefore, the overall workflow of is: when user clicks the link, take them to Google Authentication that is defined by the Passport Middleware function which we have included inside the auth.js file and imported this file within app.js.
+
+5. The _scope_ parameter states what information we want to retreive after a successful authentication. In this example, we are only retreiving the user email and profile information. You can do more like openID etc.
+
+6. Also note, if you have used other authentication strategies like FB or Twitter, you will specify them one by one as Routes like we have done for Google.
+
+7. Now if you load your localhost:3000 page and click the hyperlink on the page it will redirect you to google sign-in page with the name of your web-application.
+
+8. Now if you sign-in it will give a _CANNOT GET_ error. The reason is remember that we had specified a callbackURL to Google, which we are yet to define as a route in our server. So, now we have define the route we specified for Google's Callback URI i.e. '/google/callback' using code below:
+
+```javascript
+app.get(
+  "/google/callback",
+  passport.authenticate("google", {
+    successRedirect: "/protected", // what to do when successful login
+    failureRedirect: "auth/failure", // what to do when unsuccesful login
+  })
+);
+```
+
+9. We check that users have been authenticated using the google strategy that can have two outcomes: success or failure. If success, we re-direct them to our protected resource. Else if failure we will will create a new route and re-direct the users to the failure page. Note that for failure, instead of just a failure redirect you can also flash a message to the user using _failureFlash_ or _failureMessage_.
+
+10. Recall, we had initially created a _protected_ route. Now will will tie it up with authentication.
+
+```javascript
+app.get("/protected", (req, res) => {
+  res.send(`Hello....${req.user.displayName} `);
+});
+```
+
+11. Since the user is logged in, the req object contains a user object which contains the user credentials (id, name, email etc.). Within this there is a property called _displayName_ that we are using here. You can explore this user object and its properties further using console.log().
+
+12. Let us also define our failure route:
+
+```javascript
+app.get("/auth/failure", (req, res) => {
+  res.send("You were not authenticated.. Try again next time");
+});
+```
+
+### Step 9: Check if the user is already logged in
+
+1. The previos steps do re-direct the user to our web-app's protected resources after a successful log-in through Google. However, our resources are not truly protected. This is because, if a user knows the url of the protected pages, they can effectively bypass the authentication by typing the the complete url in the browser address bar.
+
+2. As such we need a mechanism in place to verify whether a user trying to access a protected resource has actually been authenticated or not. We will do so by defining another Middleware function as shown below:
+
+```javascript
+function isLoggedIn(req, res, next) {
+  // Logic: If the req object already has user credential, then pass it onto the next point, else return a 401 status (unauthorized acccess)
+  req.user ? next() : res.sendStatus(401);
+}
+```
+
+3. Once the above middleware function is declared and defined, we will use it as callback parameter to every protected route as shown below:
+
+```javascript
+app.get("/protected", isLoggedIn, (req, res) => {
+  res.send(`Hello....${req.user.displayName} `);
+});
+```
+
+4. Now, with this mechanism in place, a user will never be able to access the http response unless the callback to _isLoogedIn()_ is successful. This callback to _isLoggedIn()_ what makes our protected route truly protected. You can check by typing in your browser: localhost:3000/protected. You will get 401 stating unauthorized access. Also note that, the call to the _next()_ in the body of _isLoggedIn()_ brings the workflow back to the response body of the route that did the callback.
+
+### Step 10: Session Management: make the user object a part of http req object to access protected resources
+
+1. For this we will use the final module that we had installed: _express-session_. Additional info is also present in the Passport documentation page under the middleware sub-section
+
+2. In _app.js_ import express-session:
+
+```javascript
+const session = require("express-session");
+```
+
+3. We will copy the preamble from the documentation to use session as a middleware.
+
+```javascript
+app.use(session({ secret: "cats" }));
+```
+
+4. Note: order of declaration is important. The code above MUST be written before following code:
+
+```javascript
+app.use(passport.initialize());
+app.use(passport.session());
+```
+
+5. Note that there are some deprications unrelated to this tutorial which can be resolved by checking out express-session documentations. Also use a stronger secret and preferably store the secret in the _.env_ file. That is use a code like shown below:
+
+```javascript
+app.use(
+  session({
+    secret: "r8q,+&1LM3)CD*zAGpx1xm{NeQhc;#",
+    resave: false, // Deprecation flag shown for this parameter
+    saveUninitialized: true, // Deprecation flag shown for this parameter
+    cookie: { maxAge: 60 * 60 * 1000 }, // 1 hour
+  })
+);
+```
+
+### Step 11: Allow users to be able to logout
+
+1. Create a Logout route as shown below:
+
+```javascript
+app.get("/logout", (req, res) => {
+  req.logout(); // logs the user out
+  req.session.destroy(); // destroy the session created
+  res.send("You have been successfully logged out... Goodbye!");
+});
+```
+
+### Step 12: Check everything works as intended
+
+Try out the following:
+
+1. goto home page: localhost:3000
+2. click login
+3. login with google
+4. see custom msg with your name
+5. go to address bar in your browser type /logout
+6. Try accessing /protected to get 401 msg.
+
+### Step 13: Looking Ahead
+
+1. Create layouts and views that has proper HTML pages with login forms etc.
+2. Try a self-exercise that uses a DB connection within authentication similar to what is shown on this [link](https://heynode.com/tutorial/authenticate-users-node-expressjs-and-passportjs/)
